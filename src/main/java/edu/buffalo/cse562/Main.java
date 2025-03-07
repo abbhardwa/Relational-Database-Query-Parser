@@ -1,117 +1,109 @@
 package edu.buffalo.cse562;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-
-import jdbm.PrimaryTreeMap;
-import jdbm.RecordManager;
-import jdbm.RecordManagerFactory;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
+import edu.buffalo.cse562.model.Table;
+import edu.buffalo.cse562.service.QueryExecutionService;
 import net.sf.jsqlparser.parser.CCJSqlParser;
-import net.sf.jsqlparser.parser.ParseException;
 import net.sf.jsqlparser.statement.Statement;
-import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
-import net.sf.jsqlparser.statement.create.table.Index;
-import net.sf.jsqlparser.statement.delete.Delete;
-import net.sf.jsqlparser.statement.insert.Insert;
-import net.sf.jsqlparser.statement.select.Limit;
-import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.update.Update;
 
-/* this is the class that we use to form Table objects which consist of various attributes of tables */
-class Table {
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 
-	// this is the name of the table
-	String tableName;
-	// this is the number of columns in the tables
-	int noOfColumns;
-	// this File object stores the path to the table file
-	File tableFilePath;
-	// this File object stores the directory in which the table is present
-	File tableDataDirectoryPath;
-	// this is the list of columnName and columnType pairs corresponding to the table
-	ArrayList<ColumnDefinition> columnDescriptionList;
-	// this HashMap stores the mappings from the columnNames to integer indices in the table
-	HashMap<String, Integer> columnIndexMap;
-	// this ArrayList stores the tuples of the table as we deal with the small amount of data in this project
-	ArrayList<String> tableTuples;
-	// this is the FileReader object for the table
-	FileReader fr;
-	// this is the BufferedReader object for the table
-	BufferedReader br;
+/**
+ * Main entry point for the database query parser application.
+ */
+public class Main {
+    private static QueryExecutionService queryService;
 
-	// this is the constructor for the Table class
-	public Table(String tableName, int noOfColumns, File tableFilePath, File tableDataDirectoryPath) {
-		this.tableName = tableName;
-		this.noOfColumns = noOfColumns;
-		this.tableFilePath = tableFilePath;
-		this.tableDataDirectoryPath = tableDataDirectoryPath;
-		this.columnDescriptionList = new ArrayList<ColumnDefinition>();
-		this.columnIndexMap = new HashMap<String, Integer>();
-		this.tableTuples = new ArrayList<String>();
-		this.fr = null;
-		this.br = null;
-	}
+    public static void main(String[] args) {
+        try {
+            // Initialize query service
+            queryService = new QueryExecutionService();
 
-	// this function is used to make a clone of the table given as input
-	public Table(Table tableToClone) {
-		this.tableName = tableToClone.tableName;
-		this.noOfColumns = tableToClone.noOfColumns;
-		this.tableFilePath = tableToClone.tableFilePath;
-		this.tableDataDirectoryPath = tableToClone.tableDataDirectoryPath;
-		this.columnDescriptionList = tableToClone.columnDescriptionList;
-		this.columnIndexMap = tableToClone.columnIndexMap;
-		this.tableTuples = tableToClone.tableTuples;
-		this.fr = null;
-		this.br = null;
-	}
+            // Process command line arguments
+            File dataDir = null;
+            for (int i = 0; i < args.length; i++) {
+                if (args[i].equals("--data")) {
+                    dataDir = new File(args[++i]);
+                }
+            }
 
-	// this function is used to populate the list of tuples in the table's tuple list
-	public void populateTable() throws IOException{
-		//System.out.println("path : " + this.tableFilePath);
-		BufferedReader br = new BufferedReader(new FileReader(this.tableFilePath));
-		String tuple;
+            if (dataDir == null || !dataDir.isDirectory()) {
+                throw new IllegalArgumentException("Please provide a valid data directory with --data argument");
+            }
 
-		while((tuple = br.readLine()) != null)
-			this.tableTuples.add(tuple);
-	}
+            // Process each SQL file
+            for (int i = 0; i < args.length; i++) {
+                if (args[i].endsWith(".sql")) {
+                    processSqlFile(new File(args[i]), dataDir);
+                }
+            }
 
-	// this function is used to read the tuples of the table
-	public void readTable() throws IOException {
-		for(String tuple : this.tableTuples)
-			System.out.println(tuple);
-	}
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
 
-	// this function is used to populate the columnIndexMap for the table
-	public void populateColumnIndexMap() {
-		int indexCounter = 0;
-		for (ColumnDefinition cdPair : this.columnDescriptionList) {
-			this.columnIndexMap.put(cdPair.getColumnName(), indexCounter++);
-		}
-	}
+    private static void processSqlFile(File sqlFile, File dataDir) throws Exception {
+        try (FileReader reader = new FileReader(sqlFile)) {
+            CCJSqlParser parser = new CCJSqlParser(reader);
+            Statement statement;
 
-	// this function is used to allocate the BufferedReader and the FileReader object for the .dat or .tbl file associated with the table
-	public void allocateBufferedReaderForTableFile() throws FileNotFoundException{
-		this.fr = new FileReader(this.tableFilePath);
-		this.br = new BufferedReader(fr,32768);
-	}
+            while ((statement = parser.Statement()) != null) {
+                if (statement instanceof CreateTable) {
+                    processCreateTable((CreateTable) statement, dataDir);
+                } else {
+                    // Execute query and display results
+                    Table result = queryService.executeQuery(statement.toString());
+                    if (result != null) {
+                        displayResults(result);
+                    }
+                }
+            }
+        }
+    }
 
-	// this function is used to return a tuple at a time from the .dat or .tbl file describing the table
-	public String returnTuple() throws IOException{
+    private static void processCreateTable(CreateTable createTable, File dataDir) {
+        String tableName = createTable.getTable().getName().toLowerCase();
+        File tableFile = Paths.get(dataDir.getPath(), tableName + ".dat").toFile();
+        if (!tableFile.exists()) {
+            tableFile = Paths.get(dataDir.getPath(), tableName + ".tbl").toFile();
+        }
 
+        Table table = new Table(
+            tableName,
+            createTable.getColumnDefinitions().size(),
+            tableFile,
+            dataDir
+        );
+        
+        table.setColumnDefinitions(new ArrayList<>(createTable.getColumnDefinitions()));
+        table.populateColumnIndexMap();
+        
+        try {
+            table.populateTable();
+            queryService.registerTable(tableName, table);
+        } catch (IOException e) {
+            System.err.println("Error loading table " + tableName + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private static void displayResults(Table result) {
+        if (result != null && result.getTuples() != null) {
+            for (String tuple : result.getTuples()) {
+                System.out.println(tuple);
+            }
+        }
+    }
+}
+}
 		// if both of these are null then allocate the reader object for the file corresponding to the table
 		if(this.br == null && this.fr == null)
 			this.allocateBufferedReaderForTableFile();
