@@ -2,25 +2,34 @@
 
 This repository contains a custom SQL query processing engine implementation in Java along with TPC-H benchmark support tools. The project provides a framework for executing SQL queries over TPC-H benchmark data with various query optimization techniques including hash joins, aggregation operations, and indexing.
 
-## Repository Structure
+## Project Structure
 
-The repository is organized into three main components:
-
-- `TeamCode/` - Contains the Java implementation of the SQL query engine
-  - Query Operations (Selection, Projection, Aggregation, etc.)
-  - Join Operations (Hash Join, Hybrid Hash)
-  - Index Building and Management
-  - External Sort Implementation
-  
-- `tpch_dbgen/` - The TPC-H data generation tool
-  - Database population scripts
-  - Reference data and answer sets
-  - Data generation utilities
-
-- `tpch_queries/` - TPC-H benchmark queries
-  - SQL query templates
-  - Schema definitions
-  - Sample queries (TPC-H queries 1-16)
+```
+.
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── edu/buffalo/cse562/        # Source code
+│   │   │       ├── AggregateOperations.java
+│   │   │       ├── BuildIndexes.java
+│   │   │       ├── ExternalSort.java
+│   │   │       ├── HashJoin.java
+│   │   │       ├── HybridHash.java
+│   │   │       ├── Main.java
+│   │   │       ├── OrderByOperation.java
+│   │   │       ├── ProjectTableOperation.java
+│   │   │       ├── SelectionOperation.java
+│   │   │       └── WhereOperation.java
+│   │   └── resources/
+│   │       └── queries/                    # TPCH queries
+│   └── test/
+│       └── java/                          # Test code (future)
+├── tools/
+│   └── dbgen/                             # TPCH data generation tool
+│       ├── dbgen/                         # Data generation utilities
+│       └── ref_data/                      # Reference data sets
+├── pom.xml                                # Maven build configuration
+└── README.md                              # This file
 
 ## Dependencies and Requirements
 
