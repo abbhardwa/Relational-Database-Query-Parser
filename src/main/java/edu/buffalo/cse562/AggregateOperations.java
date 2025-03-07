@@ -1,15 +1,18 @@
 package edu.buffalo.cse562;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.io.BufferedWriter;
-import java.util.LinkedHashMap;
 
 import net.sf.jsqlparser.parser.ParseException;
 import net.sf.jsqlparser.statement.create.table.ColDataType;
@@ -17,10 +20,174 @@ import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 
 public class AggregateOperations {
 
-	// Function to calculate the Group BY Clause and store the values in a Hash
-	// Map
+    /**
+     * Calculate sum of values in specified column
+     * @param data List of rows
+     * @param columnIndex Column index to sum
+     * @return Sum of values
+     */
+    public double calculateSum(List<String[]> data, int columnIndex) {
+        if (data == null || data.isEmpty()) return 0;
+        validateColumnIndex(data.get(0), columnIndex);
+        
+        double sum = 0;
+        for (String[] row : data) {
+            if (row[columnIndex] != null) {
+                sum += Double.parseDouble(row[columnIndex]);
+            }
+        }
+        return sum;
+    }
 
-	public LinkedHashMap<String, Object> getGroupBy(Table newTable,
+    /**
+     * Calculate average of values in specified column
+     * @param data List of rows
+     * @param columnIndex Column index to average
+     * @return Average of values
+     */
+    public double calculateAverage(List<String[]> data, int columnIndex) {
+        if (data == null || data.isEmpty()) return 0;
+        validateColumnIndex(data.get(0), columnIndex);
+        
+        double sum = 0;
+        int count = 0;
+        for (String[] row : data) {
+            if (row[columnIndex] != null) {
+                sum += Double.parseDouble(row[columnIndex]);
+                count++;
+            }
+        }
+        return count > 0 ? sum / count : 0;
+    }
+
+    /**
+     * Count number of rows
+     * @param data List of rows
+     * @return Count of rows
+     */
+    public int calculateCount(List<String[]> data) {
+        return data != null ? data.size() : 0;
+    }
+
+    /**
+     * Count distinct values in specified column
+     * @param data List of rows
+     * @param columnIndex Column index to count distinct values
+     * @return Count of distinct values
+     */
+    public int calculateCountDistinct(List<String[]> data, int columnIndex) {
+        if (data == null || data.isEmpty()) return 0;
+        validateColumnIndex(data.get(0), columnIndex);
+        
+        Set<String> distinct = new HashSet<>();
+        for (String[] row : data) {
+            if (row[columnIndex] != null) {
+                distinct.add(row[columnIndex]);
+            }
+        }
+        return distinct.size();
+    }
+
+    /**
+     * Calculate minimum value in specified column
+     * @param data List of rows
+     * @param columnIndex Column index to find minimum
+     * @return Minimum value
+     */
+    public double calculateMin(List<String[]> data, int columnIndex) {
+        if (data == null || data.isEmpty()) return 0;
+        validateColumnIndex(data.get(0), columnIndex);
+        
+        double min = Double.MAX_VALUE;
+        for (String[] row : data) {
+            if (row[columnIndex] != null) {
+                min = Math.min(min, Double.parseDouble(row[columnIndex]));
+            }
+        }
+        return min != Double.MAX_VALUE ? min : 0;
+    }
+
+    /**
+     * Calculate maximum value in specified column
+     * @param data List of rows
+     * @param columnIndex Column index to find maximum
+     * @return Maximum value
+     */
+    public double calculateMax(List<String[]> data, int columnIndex) {
+        if (data == null || data.isEmpty()) return 0;
+        validateColumnIndex(data.get(0), columnIndex);
+        
+        double max = Double.MIN_VALUE;
+        for (String[] row : data) {
+            if (row[columnIndex] != null) {
+                max = Math.max(max, Double.parseDouble(row[columnIndex]));
+            }
+        }
+        return max != Double.MIN_VALUE ? max : 0;
+    }
+
+    /**
+     * Group by column and calculate sum for another column
+     * @param data List of rows
+     * @param groupByColumnIndex Column index to group by
+     * @param sumColumnIndex Column index to sum
+     * @return Map of group keys to sums
+     */
+    public Map<String, Double> groupBySum(List<String[]> data, int groupByColumnIndex, int sumColumnIndex) {
+        if (data == null || data.isEmpty()) return Collections.emptyMap();
+        validateColumnIndex(data.get(0), groupByColumnIndex);
+        validateColumnIndex(data.get(0), sumColumnIndex);
+        
+        Map<String, Double> groups = new HashMap<>();
+        for (String[] row : data) {
+            String groupKey = row[groupByColumnIndex] != null ? row[groupByColumnIndex] : "NULL";
+            if (row[sumColumnIndex] != null) {
+                double value = Double.parseDouble(row[sumColumnIndex]);
+                groups.merge(groupKey, value, Double::sum);
+            }
+        }
+        return groups;
+    }
+
+    /**
+     * Group by multiple columns and calculate sum for another column
+     * @param data List of rows
+     * @param groupByColumnIndices Array of column indices to group by
+     * @param sumColumnIndex Column index to sum
+     * @return Map of composite group keys to sums
+     */
+    public Map<String, Double> groupByMultiColumnSum(List<String[]> data, int[] groupByColumnIndices, int sumColumnIndex) {
+        if (data == null || data.isEmpty()) return Collections.emptyMap();
+        for (int index : groupByColumnIndices) {
+            validateColumnIndex(data.get(0), index);
+        }
+        validateColumnIndex(data.get(0), sumColumnIndex);
+        
+        Map<String, Double> groups = new HashMap<>();
+        for (String[] row : data) {
+            StringBuilder keyBuilder = new StringBuilder();
+            for (int i = 0; i < groupByColumnIndices.length; i++) {
+                if (i > 0) keyBuilder.append("|");
+                keyBuilder.append(row[groupByColumnIndices[i]] != null ? row[groupByColumnIndices[i]] : "NULL");
+            }
+            String groupKey = keyBuilder.toString();
+            
+            if (row[sumColumnIndex] != null) {
+                double value = Double.parseDouble(row[sumColumnIndex]);
+                groups.merge(groupKey, value, Double::sum);
+            }
+        }
+        return groups;
+    }
+
+    private void validateColumnIndex(String[] row, int columnIndex) {
+        if (columnIndex < 0 || columnIndex >= row.length) {
+            throw new IllegalArgumentException("Invalid column index: " + columnIndex);
+        }
+    }
+
+    // Function to calculate the Group BY Clause and store the values in a Hash Map
+    public LinkedHashMap<String, Object> getGroupBy(Table newTable,
 			String groupBy, String columnName, int columnNo,
 			String aggregateFunc) throws IOException {
 
