@@ -103,6 +103,7 @@ public class Main {
         }
     }
 }
+}
 		// if both of these are null then allocate the reader object for the file corresponding to the table
 		if(this.br == null && this.fr == null)
 			this.allocateBufferedReaderForTableFile();
