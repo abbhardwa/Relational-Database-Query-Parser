@@ -56,8 +56,12 @@ public class AggregateOperations {
     
     /**
      * Performs a GROUP BY operation with aggregations.
+     * 
+     * @param groupByColumns List of column names to group by
+     * @param aggregations List of column name and aggregation function pairs
+     * @return The group by result containing all aggregations
      */
-    public GroupByResult groupBy(List<String> groupByColumns, Map<String, AggregateFunction> aggregations) {
+    public GroupByResult groupBy(List<String> groupByColumns, List<Map.Entry<String, AggregateFunction>> aggregations) {
         // Get column indices for group by columns
         List<Integer> groupByIndices = groupByColumns.stream()
             .map(table::getColumnIndex)
@@ -82,7 +86,10 @@ public class AggregateOperations {
         groups.forEach((key, groupRows) -> {
             List<AggregateResult> groupResults = new ArrayList<>();
             
-            aggregations.forEach((column, func) -> {
+            for (Map.Entry<String, AggregateFunction> agg : aggregations) {
+                String column = agg.getKey();
+                AggregateFunction func = agg.getValue();
+                
                 int colIndex = table.getColumnIndex(column);
                 List<String> colValues = groupRows.stream()
                     .map(row -> row[colIndex])
@@ -108,12 +115,23 @@ public class AggregateOperations {
                         groupResults.add(AggregateResult.of(func, average(colValues)));
                         break;
                 }
-            });
+            }
             
             results.put(key, groupResults);
         });
         
         return GroupByResult.of(groupByColumns, results);
+    }
+    
+    /**
+     * Backward compatibility method for single aggregation per column.
+     * @deprecated Use {@link #groupBy(List, List)} instead
+     */
+    @Deprecated
+    public GroupByResult groupBy(List<String> groupByColumns, Map<String, AggregateFunction> aggregations) {
+        List<Map.Entry<String, AggregateFunction>> aggList = aggregations.entrySet().stream()
+            .collect(Collectors.toList());
+        return groupBy(groupByColumns, aggList);
     }
     
     // Helper methods for aggregations

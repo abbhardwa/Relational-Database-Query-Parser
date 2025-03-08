@@ -25,7 +25,7 @@ public final class GroupByKey {
      * Creates a new GroupByKey from variable arguments.
      */
     public static GroupByKey of(String... values) {
-        return new GroupByKey(Arrays.asList(values));
+        return new GroupByKey(List.copyOf(Arrays.asList(values)));
     }
     
     /**

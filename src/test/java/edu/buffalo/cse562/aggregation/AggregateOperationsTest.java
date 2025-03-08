@@ -190,10 +190,10 @@ public class AggregateOperationsTest {
     
     @Test
     public void testMultipleAggregationsInGroupBy() {
-        Map<String, AggregateFunction> aggregations = new HashMap<>();
-        aggregations.put("amount", AggregateFunction.SUM);
-        aggregations.put("amount", AggregateFunction.AVG);
-        aggregations.put("id", AggregateFunction.COUNT);
+        List<Map.Entry<String, AggregateFunction>> aggregations = new ArrayList<>();
+        aggregations.add(new AbstractMap.SimpleEntry<>("amount", AggregateFunction.SUM));
+        aggregations.add(new AbstractMap.SimpleEntry<>("amount", AggregateFunction.AVG));
+        aggregations.add(new AbstractMap.SimpleEntry<>("id", AggregateFunction.COUNT));
         
         GroupByResult result = aggregateOp.groupBy(Collections.singletonList("category"), aggregations);
         
@@ -202,15 +202,25 @@ public class AggregateOperationsTest {
         List<AggregateResult> groupAResults = result.getResultsForGroup(keyA);
         assertEquals(3, groupAResults.size());
         
-        // Verify we have all aggregation types
+        // Verify all expected aggregation types are present for group A
         Set<AggregateFunction> functions = new HashSet<>();
+        Map<AggregateFunction, BigDecimal> numericResults = new HashMap<>();
+        
         for (AggregateResult aggResult : groupAResults) {
             functions.add(aggResult.getFunction());
+            if (aggResult.getNumericResult().isPresent()) {
+                numericResults.put(aggResult.getFunction(), aggResult.getNumericResult().get().setScale(2));
+            }
         }
         
-        assertTrue(functions.contains(AggregateFunction.SUM));
-        assertTrue(functions.contains(AggregateFunction.AVG));
-        assertTrue(functions.contains(AggregateFunction.COUNT));
+        assertTrue("Should contain SUM", functions.contains(AggregateFunction.SUM));
+        assertTrue("Should contain AVG", functions.contains(AggregateFunction.AVG));
+        assertTrue("Should contain COUNT", functions.contains(AggregateFunction.COUNT));
+        
+        assertEquals("SUM of amount for group A should be 300.00", 
+            new BigDecimal("300.00"), numericResults.get(AggregateFunction.SUM));
+        assertEquals("AVG of amount for group A should be 150.00", 
+            new BigDecimal("150.00"), numericResults.get(AggregateFunction.AVG));
     }
     
     @Test(expected = IllegalArgumentException.class) 
