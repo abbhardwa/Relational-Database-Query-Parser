@@ -95,23 +95,38 @@ public class AggregateOperations {
                     .map(row -> row[colIndex])
                     .collect(Collectors.toList());
                     
+                // Process the specified aggregate function for the current column values.
+                // Each case handles a different type of aggregation and wraps the result
+                // in an appropriate AggregateResult instance.
                 switch (func) {
                     case SUM:
+                        // Calculate sum of numeric values, handling null values appropriately
+                        // Uses regular AggregateResult since sum returns a numeric value
                         groupResults.add(AggregateResult.of(func, sum(colValues)));
                         break;
                     case MIN:
+                        // Find minimum value in the column, preserving null if all values are null
+                        // Uses regular AggregateResult for the numeric minimum
                         groupResults.add(AggregateResult.of(func, min(colValues)));
                         break;
                     case MAX:
+                        // Find maximum value in the column, preserving null if all values are null
+                        // Uses regular AggregateResult for the numeric maximum
                         groupResults.add(AggregateResult.of(func, max(colValues)));
                         break;
                     case COUNT:
+                        // Count all non-null values in the column
+                        // Uses special ofCount factory method since counts are always long values
                         groupResults.add(AggregateResult.ofCount(count(colValues)));
                         break;
                     case COUNT_DISTINCT:
+                        // Count unique non-null values in the column
+                        // Uses special ofCount factory method for the long count result
                         groupResults.add(AggregateResult.ofCount(countDistinct(colValues)));
                         break;
                     case AVG:
+                        // Calculate arithmetic mean, handling null values and empty sets
+                        // Uses regular AggregateResult since average returns a numeric value
                         groupResults.add(AggregateResult.of(func, average(colValues)));
                         break;
                 }
