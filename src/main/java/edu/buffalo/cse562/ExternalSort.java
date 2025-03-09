@@ -1,19 +1,231 @@
 package edu.buffalo.cse562;
 
+import edu.buffalo.cse562.model.Table;
+import edu.buffalo.cse562.operations.MergeOperation;
+import edu.buffalo.cse562.operations.SortOperation;
+import edu.buffalo.cse562.operations.DatabaseOperation;
+import edu.buffalo.cse562.util.TableComparator;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
+/**
+ * ExternalSort implements external merge sort algorithm for large datasets that don't fit in memory.
+ * The algorithm works in two phases:
+ * 1. Sorting phase: Divides data into smaller chunks, sorts them in memory
+ * 2. Merging phase: Merges sorted chunks to create final sorted output
+ */
+public class ExternalSort implements SortOperation, MergeOperation {
+    private static final Logger LOGGER = Logger.getLogger(ExternalSort.class.getName());
+    private static final int DEFAULT_CHUNK_SIZE = 10000;
+    
+    private final int chunkSize;
+    private final String tempFilePrefix;
+    
+    /**
+     * Configuration class holds all the parameters needed for external sort
+     */
+    public static class Config {
+        private int chunkSize = DEFAULT_CHUNK_SIZE;
+        private String tempFilePrefix = "temp_outside";
+        
+        public Config setChunkSize(int size) {
+            if (size <= 0) {
+                throw new IllegalArgumentException("Chunk size must be positive");
+            }
+            this.chunkSize = size;
+            return this;
+        }
+        
+        public Config setTempFilePrefix(String prefix) {
+            if (prefix == null || prefix.trim().isEmpty()) {
+                throw new IllegalArgumentException("Temp file prefix cannot be null or empty");
+            }
+            this.tempFilePrefix = prefix.trim();
+            return this;
+        }
+    }
+    
+    /**
+     * Creates a new ExternalSort instance with default configuration
+     */
+    public ExternalSort() {
+        this(new Config());
+    }
+    
+    /**
+     * Creates a new ExternalSort instance with custom configuration
+     * @param config The configuration object
+     */
+    public ExternalSort(Config config) {
+        if (config == null) {
+            throw new IllegalArgumentException("Config cannot be null");
+        }
+        this.chunkSize = config.chunkSize;
+        this.tempFilePrefix = config.tempFilePrefix;
+    }
 
-public class ExternalSort {
+    /**
+     * Main entry point for external merge sort.
+     * 
+     * @param table the table to sort
+     * @param orderByList list of columns to order by
+     * @return sorted table
+     * @throws IOException if there are any IO issues
+     */
+    public Table sortTable(Table table, List orderByList) throws IOException {
+        if (table == null) {
+            throw new IllegalArgumentException("Table cannot be null");
+        }
+        if (orderByList == null || orderByList.isEmpty()) {
+            throw new IllegalArgumentException("Order by list cannot be null or empty");
+        }
+
+        LOGGER.log(Level.INFO, "Starting external sort on table: " + table.tableName);
+        Collections.reverse(orderByList); // Start with least significant column
+        
+        // Phase 1: Sort chunks
+        ArrayList<Table> sortedChunks = createAndSortChunks(table, orderByList);
+        LOGGER.log(Level.INFO, "Created " + sortedChunks.size() + " sorted chunks");
+        
+        // Phase 2: Merge chunks
+        return mergeTables(sortedChunks, orderByList);
+    }
+
+    /**
+     * Creates and sorts chunks of the input table.
+     */
+    private ArrayList<Table> createAndSortChunks(Table table, List orderByList) throws IOException {
+        int chunkCount = 0;
+        ArrayList<String> currentRows = new ArrayList<>();
+        ArrayList<Table> chunkList = new ArrayList<>();
+        TableComparator comparator = new TableComparator(table, orderByList, orderByList.size());
+        
+        String tuple;
+        while ((tuple = table.returnTuple()) != null) {
+            currentRows.add(tuple);
+            
+            if (currentRows.size() >= chunkSize) {
+                Table newChunk = createSortedChunkTable(currentRows, table, chunkCount++, comparator);
+                chunkList.add(newChunk);
+                currentRows = new ArrayList<>();
+            }
+        }
+        
+        // Handle remaining rows
+        if (!currentRows.isEmpty()) {
+            Table newChunk = createSortedChunkTable(currentRows, table, chunkCount, comparator);
+            chunkList.add(newChunk);
+        }
+        
+        return chunkList;
+    }
+    
+    /**
+     * Creates a sorted chunk table from the given rows.
+     */
+    private Table createSortedChunkTable(List<String> rows, Table sourceTable, int chunkNum, 
+            TableComparator comparator) throws IOException {
+        Collections.sort(rows, comparator);
+        
+        String chunkName = tempFilePrefix + chunkNum + sourceTable.tableName;
+        Table newChunk = new Table(chunkName, sourceTable.noOfColumns, 
+            new File(sourceTable.tableDataDirectoryPath + File.separator + chunkName), 
+            sourceTable.tableDataDirectoryPath);
+        
+        newChunk.columnDescriptionList = sourceTable.columnDescriptionList;
+        newChunk.columnIndexMap = sourceTable.columnIndexMap;
+        
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(newChunk.tableFilePath))) {
+            for (String row : rows) {
+                writer.write(row);
+                writer.newLine();
+            }
+        }
+        
+        return newChunk;
+    }
+
+    /**
+     * Merges multiple sorted tables into a single sorted table.
+     */
+    public Table mergeTables(List<Table> tables, List orderByList) throws IOException {
+        if (tables == null || tables.isEmpty()) {
+            throw new IllegalArgumentException("Tables list cannot be null or empty");
+        }
+        if (orderByList == null || orderByList.isEmpty()) {
+            throw new IllegalArgumentException("Order by list cannot be null or empty");
+        }
+
+        LOGGER.log(Level.INFO, "Starting merge of " + tables.size() + " chunks");
+        
+        Table firstTable = tables.get(0);
+        String mergedTableName = "merged_" + System.currentTimeMillis() + "_" + firstTable.tableName;
+        Table mergedTable = new Table(mergedTableName, firstTable.noOfColumns,
+            new File(firstTable.tableDataDirectoryPath + File.separator + mergedTableName),
+            firstTable.tableDataDirectoryPath);
+            
+        mergedTable.columnDescriptionList = firstTable.columnDescriptionList;
+        mergedTable.columnIndexMap = firstTable.columnIndexMap;
+        
+        // Setup priority queue for merging
+        PriorityQueue<String> tupleQueue = new PriorityQueue<>(
+            (t1, t2) -> compareForMerge(t1, t2, firstTable, orderByList));
+            
+        // Initialize the queue with first tuple from each table
+        HashMap<String, Integer> tupleToTableMap = new HashMap<>();
+        for (int i = 0; i < tables.size(); i++) {
+            String tuple = tables.get(i).returnTuple();
+            if (tuple != null) {
+                String tupleWithSource = tuple + "|" + i;
+                tupleQueue.offer(tupleWithSource);
+                tupleToTableMap.put(tuple, i);
+            }
+        }
+        
+        // Merge tuples
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(mergedTable.tableFilePath))) {
+            while (!tupleQueue.isEmpty()) {
+                String tupleWithSource = tupleQueue.poll();
+                String[] parts = tupleWithSource.split("\\|");
+                String tuple = parts[0];
+                int tableIndex = Integer.parseInt(parts[parts.length - 1]);
+                
+                writer.write(tuple);
+                writer.newLine();
+                
+                // Get next tuple from the same table
+                String nextTuple = tables.get(tableIndex).returnTuple();
+                if (nextTuple != null) {
+                    tupleQueue.offer(nextTuple + "|" + tableIndex);
+                }
+            }
+        }
+        
+        LOGGER.log(Level.INFO, "Completed merging chunks into table: " + mergedTableName);
+        return mergedTable;
+    }
+    
+    private int compareForMerge(String t1, String t2, Table table, List orderByList) {
+        String[] parts1 = t1.split("\\|");
+        String[] parts2 = t2.split("\\|");
+        
+        // Remove the source table index for comparison
+        String tuple1 = parts1[0];
+        String tuple2 = parts2[0];
+        
+        TableComparator comparator = new TableComparator(table, orderByList, orderByList.size());
+        return comparator.compare(tuple1, tuple2);
+    }
 	
 	private static int phase = 0;
 	// method to perform the External merge Sort
