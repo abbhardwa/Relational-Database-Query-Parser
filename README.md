@@ -218,12 +218,22 @@ The system employs these common data transformation patterns:
    ```
    Records → Group → Transform → Combine → Results
    ```
-   Progressive data reduction through grouping and aggregation.
+   Progressive data reduction through grouping and aggregation:
+   1. Records: Raw source data rows from table scans or previous operations
+   2. Group: Records clustered by GROUP BY keys using hash tables
+   3. Transform: Aggregate functions applied within groups (SUM, AVG, etc.)
+   4. Combine: Merge partial results from parallel workers
+   5. Results: Final aggregated output rows
 
 4. **Index-Assisted Pattern**
    ```
    Query → IndexLookup → RecordFetch → Results
    ```
+   Fast record access through indexes:
+   1. Query: Parse and analyze query conditions (e.g., WHERE id = 5)
+   2. IndexLookup: Use B-tree/hash index to find matching record locations
+   3. RecordFetch: Retrieve full records using found locations
+   4. Results: Return matching records in required order
    Using indexes to optimize data access paths.
 
 ## Dependencies and Requirements
