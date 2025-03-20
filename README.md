@@ -2,6 +2,72 @@
 
 This repository contains a custom SQL query processing engine implementation in Java along with TPC-H benchmark support tools. The project provides a framework for executing SQL queries over TPC-H benchmark data with various query optimization techniques including hash joins, aggregation operations, and indexing.
 
+## System Architecture and Data Flow
+
+The query engine follows a pipeline architecture where data flows through different operation classes for processing. Here's the high-level overview of how data flows through the system:
+
+```
+                                 ┌─────────────────┐
+                                 │      Main       │
+                                 │  (Entry Point)  │
+                                 └────────┬────────┘
+                                         │
+                             ┌───────────▼──────────┐
+                             │  QueryExecutionService│
+                             │  (Query Orchestrator) │
+                             └───────────┬──────────┘
+                                        │
+               ┌──────────────┬─────────┴───────────┬──────────────┐
+               │              │                     │              │
+     ┌─────────▼───────┐ ┌───▼────────┐    ┌──────▼─────┐  ┌────▼─────┐
+     │  BuildIndexes   │ │   Table     │    │  Selection  │  │  Project  │
+     │  (Optimization) │ │  Operations │    │  Operation  │  │   Table   │
+     └─────────┬───────┘ └────┬───────┘    └──────┬─────┘  └────┬─────┘
+               │              │                    │              │
+               └──────────────┴──────────┬────────┴──────────────┘
+                                        │
+                            ┌───────────▼──────────┐
+                            │   Processing Layer    │
+                            │ (HashJoin/Aggregate/  │
+                            │  OrderBy/HybridHash)  │
+                            └────────────┬─────────┘
+                                        │
+                                ┌───────▼──────┐
+                                │    Output    │
+                                │   Results    │
+                                └─────────────┘
+```
+
+### Key Component Interactions
+
+1. **Query Flow**
+   - Queries enter through `Main.java`
+   - `QueryExecutionService` parses and creates execution plan
+   - Operations are chained based on query requirements
+
+2. **Data Processing Flow**
+   - `Table.java` provides base data structure and access methods
+   - `SelectionOperation` filters rows based on WHERE conditions
+   - `ProjectTableOperation` extracts and transforms columns
+   - Results flow into complex operations (joins/aggregations)
+
+3. **Join Operations**
+   - Input tables → `HashJoin`/`HybridHash`
+   - Build phase creates hash tables
+   - Probe phase matches records
+   - Output flows to next operation
+
+4. **Aggregation Pipeline**
+   - Data streams into `AggregateOperations`
+   - Groups formed using hash-based techniques
+   - Aggregate functions applied
+   - Results sorted if needed via `OrderByOperation`
+
+5. **Index-Based Optimization**
+   - `BuildIndexes` creates B-tree structures
+   - Indexes integrated with selection operations
+   - Optimized access paths for qualified queries
+
 ## Project Structure
 
 ```
@@ -30,6 +96,145 @@ This repository contains a custom SQL query processing engine implementation in 
 │       └── ref_data/                      # Reference data sets
 ├── pom.xml                                # Maven build configuration
 └── README.md                              # This file
+
+### Detailed Operation Flows
+
+1. **Hash Join Flow**
+```
+Table1 ──┐                      ┌── Table2
+         │                      │
+   Build Phase              Probe Phase
+         │                      │
+   Hash Table 1 ←───┐    ┌────→Hash Table 2
+         │         │    │       │
+         └──→ HybridHash ←──────┘
+                  │
+                  ▼
+         Matched Results
+```
+
+2. **Aggregate Operation Flow**
+```
+Input Records
+      │
+      ▼
+Group Formation
+      │
+   ┌──┴──┐
+   │     │
+Hash    Sort
+Tables  Groups
+   │     │
+   └──┬──┘
+      │
+Apply Functions
+      │
+      ▼
+Final Results
+```
+
+3. **Index-Based Query Flow**
+```
+Query Predicate
+      │
+      ▼
+Index Lookup
+      │
+   ┌──┴──┐
+B-Tree   Hash
+Index    Index
+   │      │
+   └──┬───┘
+      │
+ Fetch Records
+      │
+      ▼
+Result Stream
+```
+
+## Key Components
+
+1. **AggregateOperations**
+   - Input: Raw table data or intermediate results
+   - Processing: Groups data and applies aggregate functions
+   - Output: Aggregated results to downstream operations
+   - Data Flow: `Table` → `GroupBy` → `Aggregate` → `Results`
+
+2. **BuildIndexes**
+   - Input: Table data and index specifications
+   - Processing: Creates optimized access structures
+   - Output: Persistent B-tree/hash indexes
+   - Data Flow: `Table` → `IndexBuilder` → `IndexStructure`
+
+3. **ExternalSort**
+   - Input: Unsorted data streams
+   - Processing: Multi-way merge sort with disk support
+   - Output: Sorted record stream
+   - Data Flow: `Input` → `SortChunks` → `MergePhases` → `SortedOutput`
+
+4. **HashJoin and HybridHash**
+   - Input: Two tables to be joined
+   - Processing: Build and probe hash tables
+   - Output: Joined record pairs
+   - Data Flow: `Tables` → `HashPhase` → `ProbePhase` → `JoinedResults`
+
+5. **ProjectTableOperation**
+   - Input: Raw table data
+   - Processing: Column selection and transformation
+   - Output: Projected record stream
+   - Data Flow: `Table` → `ColumnSelector` → `ProjectedData`
+
+6. **SelectionOperation**
+   - Input: Table records
+   - Processing: Applies WHERE clause filters
+   - Output: Filtered record stream
+   - Data Flow: `Table` → `Predicates` → `FilteredResults`
+
+7. **OrderByOperation**
+   - Input: Unordered record stream
+   - Processing: Sorts based on specified columns
+   - Output: Ordered results
+   - Data Flow: `Input` → `Sort` → `OrderedOutput`
+
+## Data Transformation Patterns
+
+The system employs these common data transformation patterns:
+
+1. **Pipeline Processing**
+   ```
+   Operation1 → Operation2 → Operation3 → Results
+   ```
+   Sequential processing where each operation's output feeds into the next.
+
+2. **Fork-Join Pattern**
+   ```
+   Operation1 ──┐
+                ├─→ Join → Results
+   Operation2 ──┘
+   ```
+   Parallel operations merging results through joins.
+
+3. **Aggregation Pattern**
+   ```
+   Records → Group → Transform → Combine → Results
+   ```
+   Progressive data reduction through grouping and aggregation:
+   1. Records: Raw source data rows from table scans or previous operations
+   2. Group: Records clustered by GROUP BY keys using hash tables
+   3. Transform: Aggregate functions applied within groups (SUM, AVG, etc.)
+   4. Combine: Merge partial results from parallel workers
+   5. Results: Final aggregated output rows
+
+4. **Index-Assisted Pattern**
+   ```
+   Query → IndexLookup → RecordFetch → Results
+   ```
+   Fast record access through indexes:
+   1. Query: Parse and analyze query conditions (e.g., WHERE id = 5)
+   2. IndexLookup: Use B-tree/hash index to find matching record locations
+   3. RecordFetch: Retrieve full records using found locations
+   4. Results: Return matching records in required order
+   Using indexes to optimize data access paths.
 
 ## Dependencies and Requirements
 
