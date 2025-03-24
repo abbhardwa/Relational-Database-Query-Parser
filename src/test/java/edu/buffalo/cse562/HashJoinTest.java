@@ -8,6 +8,8 @@ import org.junit.After;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import net.sf.jsqlparser.statement.create.table.ColumnDefinition;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
@@ -115,6 +117,93 @@ public class HashJoinTest {
         // Verify results
         assertNotNull("Result table should not be null", resultTable);
         assertTrue("Result should be empty", resultTable.getTuples().isEmpty());
+    }
+
+    /**
+     * Tests column mapping and ordering in hash join results.
+     * Verifies:
+     * - Correct preservation of column names
+     * - Proper ordering of columns in result
+     * - Handling of duplicate column names
+     */
+    @Test
+    public void testHashJoinColumnMapping() throws IOException {
+        // Set up test tables with specific column names
+        ArrayList<ColumnDefinition> customerColumns = new ArrayList<>();
+        ArrayList<ColumnDefinition> orderColumns = new ArrayList<>();
+        
+        // Customer columns
+        ColumnDefinition custId = new ColumnDefinition();
+        custId.setColumnName("ID");
+        ColumnDefinition custName = new ColumnDefinition();
+        custName.setColumnName("NAME");
+        ColumnDefinition custAge = new ColumnDefinition();
+        custAge.setColumnName("AGE");
+        customerColumns.add(custId);
+        customerColumns.add(custName);
+        customerColumns.add(custAge);
+        
+        // Order columns (note: ID appears in both tables)
+        ColumnDefinition orderId = new ColumnDefinition();
+        orderId.setColumnName("ORDER_ID");
+        ColumnDefinition orderCustId = new ColumnDefinition();
+        orderCustId.setColumnName("ID"); // Same name as customer ID
+        ColumnDefinition amount = new ColumnDefinition();
+        amount.setColumnName("AMOUNT");
+        orderColumns.add(orderId);
+        orderColumns.add(orderCustId);
+        orderColumns.add(amount);
+
+        // Create and populate test data
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|John Doe|30\n");
+            writer.write("2|Jane Smith|25\n");
+        }
+
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+            writer.write("102|2|200.00\n");
+        }
+
+        // Set up tables with column definitions
+        customersTable = new Table("customers", 3, customersFile, testDataDir);
+        customersTable.setColumnDescriptionList(customerColumns);
+        ordersTable = new Table("orders", 3, ordersFile, testDataDir);
+        ordersTable.setColumnDescriptionList(orderColumns);
+        
+        // Configure hash join condition
+        hashJoin = new HashJoin(customersTable, ordersTable);
+        hashJoin.setLeftKeyIndex(0);  // customer_id in customers table
+        hashJoin.setRightKeyIndex(1); // customer_id in orders table
+
+        // Populate tables
+        customersTable.populateTable();
+        ordersTable.populateTable();
+
+        // Perform hash join
+        Table resultTable = hashJoin.join();
+
+        // Verify column definitions in result
+        ArrayList<ColumnDefinition> resultColumns = resultTable.getColumnDescriptionList();
+        assertEquals("Should have combined number of columns", 6, resultColumns.size());
+
+        // Verify column order and names
+        assertEquals("First column should be customer ID", "ID", resultColumns.get(0).getColumnName());
+        assertEquals("Second column should be customer NAME", "NAME", resultColumns.get(1).getColumnName());
+        assertEquals("Third column should be customer AGE", "AGE", resultColumns.get(2).getColumnName());
+        assertEquals("Fourth column should be order ORDER_ID", "ORDER_ID", resultColumns.get(3).getColumnName());
+        assertEquals("Fifth column should be order ID", "ID", resultColumns.get(4).getColumnName());
+        assertEquals("Sixth column should be order AMOUNT", "AMOUNT", resultColumns.get(5).getColumnName());
+
+        // Verify data matches column definitions
+        for (String tuple : resultTable.getTuples()) {
+            String[] values = tuple.split("\\|");
+            assertEquals("Tuple should have correct number of values", 6, values.length);
+            // First value should be numeric (customer ID)
+            assertTrue("First value should be numeric", values[0].matches("\\d+"));
+            // Last value should be amount in decimal format
+            assertTrue("Last value should be decimal amount", values[5].matches("\\d+\\.\\d{2}"));
+        }
     }
 
     /**
