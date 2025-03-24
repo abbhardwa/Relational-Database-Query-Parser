@@ -118,6 +118,60 @@ public class HashJoinTest {
     }
 
     /**
+     * Tests hash join behavior when multiple records in both tables match on the join key.
+     * Verifies that:
+     * - All possible combinations are generated (cartesian product)
+     * - Results are correctly formatted
+     * - No records are lost or duplicated
+     */
+    @Test
+    public void testHashJoinMultipleMatches() throws IOException {
+        // Create test data with multiple matches
+        // 2 customers with id 1, 3 orders for customer id 1
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|Customer A|30\n");
+            writer.write("1|Customer B|35\n");
+            writer.write("2|Customer C|40\n");
+        }
+
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+            writer.write("102|1|200.00\n");
+            writer.write("103|1|300.00\n");
+            writer.write("104|2|400.00\n");
+        }
+
+        // Populate tables
+        customersTable.populateTable();
+        ordersTable.populateTable();
+
+        // Perform hash join
+        Table resultTable = hashJoin.join();
+
+        // Should have 6 matches for id 1 (2 customers * 3 orders) + 1 match for id 2
+        assertEquals("Should have correct number of joined tuples", 7, resultTable.getTuples().size());
+
+        // Verify all combinations for customer id 1
+        assertTrue("Should contain Customer A's first order",
+            resultTable.getTuples().contains("1|Customer A|30|101|1|100.00"));
+        assertTrue("Should contain Customer A's second order",
+            resultTable.getTuples().contains("1|Customer A|30|102|1|200.00"));
+        assertTrue("Should contain Customer A's third order",
+            resultTable.getTuples().contains("1|Customer A|30|103|1|300.00"));
+        
+        assertTrue("Should contain Customer B's first order",
+            resultTable.getTuples().contains("1|Customer B|35|101|1|100.00"));
+        assertTrue("Should contain Customer B's second order",
+            resultTable.getTuples().contains("1|Customer B|35|102|1|200.00"));
+        assertTrue("Should contain Customer B's third order",
+            resultTable.getTuples().contains("1|Customer B|35|103|1|300.00"));
+
+        // Verify single match for customer id 2
+        assertTrue("Should contain Customer C's order",
+            resultTable.getTuples().contains("2|Customer C|40|104|2|400.00"));
+    }
+
+    /**
      * Tests the table size optimization in hash join where the algorithm should:
      * - Use the smaller table to build the hash table
      * - Use the larger table to probe the hash table
