@@ -252,19 +252,107 @@ The engine implements several optimization techniques:
 ### Common Issues
 
 1. **OutOfMemoryError**
-   - Increase JVM heap size: `-Xmx4g`
-   - Enable GC logging: `-XX:+PrintGCDetails`
-   - Consider using external sort for large datasets
+   
+   *Symptoms:*
+   - JVM crashes with "java.lang.OutOfMemoryError: Java heap space"
+   - System becomes unresponsive during large queries
+   - GC overhead limit exceeded errors
+   
+   *Resolution Steps:*
+   - Increase JVM heap size: `-Xmx4g` (adjust based on data size)
+   - Enable detailed GC logging:
+     ```
+     -XX:+PrintGCDetails 
+     -XX:+PrintGCDateStamps 
+     -Xloggc:gc.log
+     ```
+   - Consider using external sort for large datasets:
+     - Set `external.sort.enabled=true` in config
+     - Configure temp directory: `external.sort.temp.dir=/path/to/disk`
+   
+   *Validation:*
+   - Monitor GC logs for reduced full GC frequency
+   - Verify memory usage stays below 75% of heap
+   - Run test queries with typical dataset sizes
 
 2. **Slow Query Performance**
-   - Check index usage with debug logs
-   - Verify join order optimization
-   - Use EXPLAIN PLAN for query analysis
+   
+   *Symptoms:*
+   - Queries take >30s to complete
+   - CPU usage spikes during execution
+   - Timeout errors in client applications
+   
+   *Resolution Steps:*
+   - Check index usage in debug logs at `/var/log/app/debug.log`
+   - Verify join order optimization:
+     ```sql
+     SET debug_print_plan = true;
+     -- Run your query
+     ```
+   - Use EXPLAIN PLAN for analysis:
+     ```sql
+     EXPLAIN ANALYZE SELECT ...
+     ```
+   - Optimize table statistics:
+     ```sql
+     ANALYZE table_name;
+     ```
+   
+   *Validation:*
+   - Compare query execution times before/after
+   - Verify indexes are being used via EXPLAIN output
+   - Check query cache hit rates
 
 3. **Build Failures**
-   - Clear Maven cache: `mvn clean`
-   - Update dependencies: `mvn versions:display-dependency-updates`
-   - Verify Java version compatibility
+   
+   *Symptoms:*
+   - "Could not resolve dependencies" errors
+   - Test failures during build
+   - Compilation errors with version conflicts
+   
+   *Resolution Steps:*
+   - Clear Maven cache and rebuild:
+     ```bash
+     mvn clean
+     rm -rf ~/.m2/repository/com/yourproject/
+     mvn clean install
+     ```
+   - Update dependencies and check conflicts:
+     ```bash
+     mvn versions:display-dependency-updates
+     mvn dependency:tree -Dverbose
+     ```
+   - Verify Java version compatibility:
+     ```bash
+     java -version
+     mvn enforcer:display-info
+     ```
+   
+   *Validation:*
+   - Clean build completes successfully
+   - All tests pass after rebuild
+   - No version conflicts in dependency tree
+
+4. **Network Connectivity Issues**
+   
+   *Symptoms:*
+   - Connection timeout errors
+   - Distributed queries fail
+   - Cluster sync problems
+   
+   *Resolution Steps:*
+   - Verify network configuration:
+     ```bash
+     netstat -an | grep LISTEN
+     telnet host port
+     ```
+   - Check firewall settings
+   - Validate DNS resolution
+   
+   *Validation:*
+   - All nodes can communicate
+   - Required ports are accessible
+   - Network latency is within specs
 
 ### Debug Mode
 
