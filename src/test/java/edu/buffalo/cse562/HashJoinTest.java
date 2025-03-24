@@ -365,6 +365,88 @@ public class HashJoinTest {
             result2.getTuples().contains("2|Customer B|25|104|2|400.00"));
     }
 
+    /**
+     * Tests edge cases and error conditions in hash join operations.
+     * Verifies:
+     * - Handling of null/invalid column indexes
+     * - Handling of invalid table data
+     * - Handling of out-of-range join key indexes 
+     */
+    @Test
+    public void testHashJoinEdgeCases() throws IOException {
+        // Test 1: Invalid join key index
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|John Doe|30\n");
+        }
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+        }
+
+        customersTable = new Table("customers", 3, customersFile, testDataDir);
+        ordersTable = new Table("orders", 3, ordersFile, testDataDir);
+
+        // Set up with invalid join key index
+        hashJoin = new HashJoin(customersTable, ordersTable);
+        hashJoin.setLeftKeyIndex(5);  // Invalid index
+        hashJoin.setRightKeyIndex(1);
+
+        customersTable.populateTable();
+        ordersTable.populateTable();
+
+        // Should still produce valid but empty results when key index is invalid
+        Table result1 = hashJoin.join();
+        assertNotNull("Result should not be null with invalid key index", result1);
+        assertTrue("Result should be empty with invalid key index", result1.getTuples().isEmpty());
+
+        // Test 2: Malformed data (wrong number of columns)
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|John Doe\n");  // Missing age column
+            writer.write("2|Jane|Smith|25\n");  // Extra column
+        }
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+        }
+
+        customersTable = new Table("customers", 3, customersFile, testDataDir);
+        ordersTable = new Table("orders", 3, ordersFile, testDataDir);
+        hashJoin = new HashJoin(customersTable, ordersTable);
+        hashJoin.setLeftKeyIndex(0);
+        hashJoin.setRightKeyIndex(1);
+
+        customersTable.populateTable();
+        ordersTable.populateTable();
+
+        // Should handle malformed data gracefully
+        Table result2 = hashJoin.join();
+        assertNotNull("Result should not be null with malformed data", result2);
+        // Any valid tuples should still be processed
+        assertEquals("Should process valid tuples from malformed data", 1, result2.getTuples().size());
+        assertTrue("Should contain valid joined tuple",
+            result2.getTuples().stream().anyMatch(t -> t.startsWith("2|Jane|Smith|25|101|1|100.00")));
+
+        // Test 3: Non-matching data types
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("AAA|John Doe|30\n");  // Non-numeric ID
+        }
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+        }
+
+        customersTable = new Table("customers", 3, customersFile, testDataDir);
+        ordersTable = new Table("orders", 3, ordersFile, testDataDir);
+        hashJoin = new HashJoin(customersTable, ordersTable);
+        hashJoin.setLeftKeyIndex(0);
+        hashJoin.setRightKeyIndex(1);
+
+        customersTable.populateTable();
+        ordersTable.populateTable();
+
+        // Should handle non-matching data types gracefully
+        Table result3 = hashJoin.join();
+        assertNotNull("Result should not be null with non-matching data types", result3);
+        assertTrue("Result should be empty with non-matching data types", result3.getTuples().isEmpty());
+    }
+
     @After
     public void tearDown() {
         // Clean up test files
