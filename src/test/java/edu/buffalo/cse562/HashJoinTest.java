@@ -118,6 +118,51 @@ public class HashJoinTest {
     }
 
     /**
+     * Tests handling of string formatting and pipe separators in hash join.
+     * Verifies:
+     * - Correct handling of trailing pipe characters
+     * - Proper string concatenation
+     * - Handling of pipe characters within column values
+     */
+    @Test
+    public void testHashJoinStringFormatting() throws IOException {
+        // Create test data with various pipe character scenarios
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|Customer|With|Pipes|30|\n");  // Extra pipes in value and at end
+            writer.write("2|Regular Customer|35\n");      // Normal format
+            writer.write("3|Customer|No Age|\n");         // Empty last value with pipe
+        }
+
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00|\n");    // With trailing pipe
+            writer.write("102|2|200.00\n");     // Without trailing pipe
+            writer.write("103|3|300.00|\n");    // With trailing pipe
+        }
+
+        // Populate tables
+        customersTable.populateTable();
+        ordersTable.populateTable();
+
+        // Perform hash join
+        Table resultTable = hashJoin.join();
+
+        // Verify results maintain correct formatting
+        assertEquals("Should have 3 joined tuples", 3, resultTable.getTuples().size());
+
+        // Verify proper handling of pipes in values and at end
+        assertTrue("Should handle pipes in customer data correctly",
+            resultTable.getTuples().contains("1|Customer|With|Pipes|30|101|1|100.00"));
+        
+        // Verify normal case without extra pipes
+        assertTrue("Should handle normal format correctly",
+            resultTable.getTuples().contains("2|Regular Customer|35|102|2|200.00"));
+        
+        // Verify empty values with pipes
+        assertTrue("Should handle empty values and ending pipes correctly",
+            resultTable.getTuples().contains("3|Customer|No Age|103|3|300.00"));
+    }
+
+    /**
      * Tests hash join behavior when multiple records in both tables match on the join key.
      * Verifies that:
      * - All possible combinations are generated (cartesian product)
