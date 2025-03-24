@@ -117,6 +117,66 @@ public class HashJoinTest {
         assertTrue("Result should be empty", resultTable.getTuples().isEmpty());
     }
 
+    /**
+     * Tests the table size optimization in hash join where the algorithm should:
+     * - Use the smaller table to build the hash table
+     * - Use the larger table to probe the hash table
+     * This test verifies both scenarios (t1 > t2 and t1 <= t2)
+     */
+    @Test
+    public void testHashJoinTableSizeOptimization() throws IOException {
+        // Test case 1: t1 > t2
+        // Create a larger customers table and smaller orders table
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|Customer A|30\n");
+            writer.write("2|Customer B|25\n");
+            writer.write("3|Customer C|35\n");
+            writer.write("4|Customer D|40\n");
+            writer.write("5|Customer E|45\n");
+        }
+
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+            writer.write("102|2|200.00\n");
+        }
+
+        customersTable.populateTable();
+        ordersTable.populateTable();
+        Table result1 = hashJoin.join();
+        
+        assertEquals("Should have 2 joined tuples when t1 > t2", 2, result1.getTuples().size());
+        assertTrue("Should contain correct joined tuple for Customer A",
+            result1.getTuples().contains("1|Customer A|30|101|1|100.00"));
+        assertTrue("Should contain correct joined tuple for Customer B", 
+            result1.getTuples().contains("2|Customer B|25|102|2|200.00"));
+
+        // Test case 2: t1 <= t2
+        // Create a smaller customers table and larger orders table
+        try (FileWriter writer = new FileWriter(customersFile)) {
+            writer.write("1|Customer A|30\n");
+            writer.write("2|Customer B|25\n");
+        }
+
+        try (FileWriter writer = new FileWriter(ordersFile)) {
+            writer.write("101|1|100.00\n");
+            writer.write("102|2|200.00\n");
+            writer.write("103|1|300.00\n");
+            writer.write("104|2|400.00\n");
+        }
+
+        customersTable.populateTable();
+        ordersTable.populateTable();
+        Table result2 = hashJoin.join();
+
+        assertEquals("Should have 4 joined tuples when t1 <= t2", 4, result2.getTuples().size());
+        assertTrue("Should contain all joined tuples for Customer A",
+            result2.getTuples().contains("1|Customer A|30|101|1|100.00") &&
+            result2.getTuples().contains("1|Customer A|30|103|1|300.00"));
+        assertTrue("Should contain all joined tuples for Customer B",
+            result2.getTuples().contains("2|Customer B|25|102|2|200.00") &&
+            result2.getTuples().contains("2|Customer B|25|104|2|400.00"));
+    }
+
     @After
     public void tearDown() {
         // Clean up test files
