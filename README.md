@@ -38,12 +38,39 @@ The engine implements advanced optimization techniques to handle complex analyti
 ├── pom.xml                                # Maven build configuration
 └── README.md                              # This file
 
-## Dependencies and Requirements
+## Development Environment
 
-- Java Development Kit (JDK)
-- JDBM (Java Database Manager) library for B-tree index support
-- JSQLParser for SQL parsing and representation
-- Make/GCC (for compiling the TPC-H data generator)
+### Requirements
+
+- Java Development Kit (JDK) 8 or later
+- Maven 3.6+
+- Make/GCC (for TPC-H data generator)
+- Git for version control
+
+### IDE Setup
+
+1. Import as Maven project:
+   - IntelliJ IDEA: Import Project -> Select pom.xml
+   - Eclipse: Import -> Existing Maven Projects
+   - VS Code: Install Java Extension Pack
+
+2. Configure JDK:
+   - Set Project SDK to JDK 8 or later
+   - Ensure Maven JDK matches project JDK
+
+### Build and Test
+```bash
+# Build project
+mvn clean install
+
+# Run tests
+mvn test
+
+# Generate test coverage report
+mvn verify
+```
+
+Code coverage reports are generated in `target/site/jacoco/`.
 
 ## Installation and Setup
 
@@ -192,6 +219,28 @@ For more help:
 - Check test cases in `src/test/` for example usage
 - Consult TPC-H documentation for data generation questions
 
+## Version and Compatibility
+
+[![Build Status](https://github.com/example/sql-query-engine/workflows/Build/badge.svg)](https://github.com/example/sql-query-engine/actions)
+[![Coverage](https://codecov.io/gh/example/sql-query-engine/branch/main/graph/badge.svg)](https://codecov.io/gh/example/sql-query-engine)
+
+### Version Information
+- Current Version: 1.0-SNAPSHOT
+- Java Compatibility: JDK 8 or later
+- Maven Version: 3.6+
+- JSqlParser: 4.5
+- JUnit: 4.13.2
+
+### Contributing
+
+When contributing to this repository:
+
+1. Maintain the existing code structure
+2. Add appropriate Java documentation
+3. Test changes against TPC-H benchmark queries
+4. Follow the established coding style
+5. Update tests for new functionality
+
 ## License
 
-The custom query engine code is available under the repository's license terms. The TPC-H tools are subject to their own licensing terms as specified in the tpch_dbgen directory.
+The custom query engine code is available under the repository's license terms. The TPC-H tools are subject to their own licensing terms as specified in the tools/dbgen directory.
