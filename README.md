@@ -1,6 +1,13 @@
 # SQL Query Engine with TPC-H Support
 
-This repository contains a custom SQL query processing engine implementation in Java along with TPC-H benchmark support tools. The project provides a framework for executing SQL queries over TPC-H benchmark data with various query optimization techniques including hash joins, aggregation operations, and indexing.
+A high-performance SQL query engine written in Java that excels at processing TPC-H benchmark workloads. This engine is designed for analyzing large datasets efficiently through:
+
+- Fast query processing with hash-based joins and B-tree indexing
+- Memory-efficient operations using hybrid hash join and external sorting
+- Full support for TPC-H benchmark queries and datasets
+- Easy integration with standard SQL tools and workflows
+
+The engine implements advanced optimization techniques to handle complex analytical queries while maintaining memory efficiency, making it suitable for both development testing and production workloads.
 
 ## Project Structure
 
@@ -40,21 +47,59 @@ This repository contains a custom SQL query processing engine implementation in 
 
 ## Installation and Setup
 
-1. Clone the repository
-2. Compile the TeamCode Java files:
+1. Clone the repository:
    ```bash
-   javac TeamCode/*.java
+   git clone <repository-url>
+   cd database-system
+   ```
+
+2. Build the project with Maven:
+   ```bash
+   mvn clean package
    ```
 
 3. Build the TPC-H data generator:
    ```bash
-   cd tpch_dbgen/dbgen
+   cd tools/dbgen/dbgen
    make
    ```
 
-4. Generate TPC-H data (replace SF with desired scale factor):
+4. Generate TPC-H data (replace SF with desired scale factor, e.g. 1 for 1GB):
    ```bash
-   ./dbgen -s SF
+   ./dbgen -s SF -f    # Creates data files in the current directory
+   ```
+
+The build will run tests and generate a JAR file in the `target/` directory.
+
+### Quick Start Example
+
+1. Generate sample TPC-H data:
+   ```bash
+   cd tools/dbgen/dbgen
+   make
+   ./dbgen -s 1 -f     # Generates 1GB scale factor data
+   ```
+
+2. Run a simple TPC-H query:
+   ```bash
+   java -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.Main \
+     --data path/to/data/directory \
+     --query "SELECT l_orderkey, l_quantity FROM lineitem WHERE l_quantity > 45"
+   ```
+
+3. Use indexes for better performance:
+   ```bash
+   # Create an index on l_quantity
+   java -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.BuildIndexes \
+     --table lineitem \
+     --column l_quantity \
+     --data path/to/data/directory
+   
+   # Query using the index
+   java -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.Main \
+     --data path/to/data/directory \
+     --index \
+     --query "SELECT l_orderkey FROM lineitem WHERE l_quantity > 45"
    ```
 
 ## Usage Instructions
@@ -91,8 +136,24 @@ The repository includes full TPC-H support:
 
 The TPC-H components allow for benchmarking and testing the query engine against standard industry workloads.
 
-## Performance Optimizations
+## Configuration and Performance Options
 
+The query engine supports several configuration options to optimize performance for different workloads:
+
+### Memory Settings
+```bash
+java -Xmx4g -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.Main   # Set max heap to 4GB
+```
+
+### Available Command Line Options
+- `--data <path>`: Directory containing data files
+- `--index`: Use available indexes for query optimization
+- `--memory <MB>`: Memory limit for operations in megabytes
+- `--temp <path>`: Directory for temporary files
+- `--explain`: Show query execution plan
+- `--stats`: Display performance statistics
+
+### Performance Optimizations
 The engine implements several optimization techniques:
 
 - B-tree indexing for faster lookups
@@ -101,14 +162,35 @@ The engine implements several optimization techniques:
 - Hybrid hash join for memory efficiency
 - Index-based query execution plans
 
-## Contributing
+## Troubleshooting
 
-When contributing to this repository:
+Common issues and solutions:
 
-1. Maintain the existing code structure
-2. Add appropriate Java documentation
-3. Test changes against TPC-H benchmark queries
-4. Follow the established coding style
+### Out of Memory Errors
+If you encounter OutOfMemoryError:
+```
+1. Increase Java heap space: java -Xmx4g -cp ...
+2. Use --memory flag to limit operation memory
+3. Enable external sorting: --temp /path/to/temp/dir
+```
+
+### Performance Issues
+If queries are running slowly:
+1. Create indexes on frequently filtered columns
+2. Ensure adequate memory allocation
+3. Use --explain to analyze query execution plan
+4. Consider increasing buffer size for large joins
+
+### TPC-H Data Generation
+If dbgen fails:
+1. Ensure make completed successfully
+2. Check disk space for output files
+3. Verify file permissions in output directory
+
+For more help:
+- Open an issue on GitHub
+- Check test cases in `src/test/` for example usage
+- Consult TPC-H documentation for data generation questions
 
 ## License
 
