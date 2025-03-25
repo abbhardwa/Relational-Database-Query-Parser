@@ -1,6 +1,13 @@
 # SQL Query Engine with TPC-H Support
 
-This repository contains a custom SQL query processing engine implementation in Java along with TPC-H benchmark support tools. The project provides a framework for executing SQL queries over TPC-H benchmark data with various query optimization techniques including hash joins, aggregation operations, and indexing.
+A high-performance SQL query engine written in Java that excels at processing TPC-H benchmark workloads. This engine is designed for analyzing large datasets efficiently through:
+
+- Fast query processing with hash-based joins and B-tree indexing
+- Memory-efficient operations using hybrid hash join and external sorting
+- Full support for TPC-H benchmark queries and datasets
+- Easy integration with standard SQL tools and workflows
+
+The engine implements advanced optimization techniques to handle complex analytical queries while maintaining memory efficiency, making it suitable for both development testing and production workloads.
 
 ## Project Structure
 
@@ -31,30 +38,95 @@ This repository contains a custom SQL query processing engine implementation in 
 ├── pom.xml                                # Maven build configuration
 └── README.md                              # This file
 
-## Dependencies and Requirements
+## Development Environment
 
-- Java Development Kit (JDK)
-- JDBM (Java Database Manager) library for B-tree index support
-- JSQLParser for SQL parsing and representation
-- Make/GCC (for compiling the TPC-H data generator)
+### Requirements
+
+- Java Development Kit (JDK) 8 or later
+- Maven 3.6+
+- Make/GCC (for TPC-H data generator)
+- Git for version control
+
+### IDE Setup
+
+1. Import as Maven project:
+   - IntelliJ IDEA: Import Project -> Select pom.xml
+   - Eclipse: Import -> Existing Maven Projects
+   - VS Code: Install Java Extension Pack
+
+2. Configure JDK:
+   - Set Project SDK to JDK 8 or later
+   - Ensure Maven JDK matches project JDK
+
+### Build and Test
+```bash
+# Build project
+mvn clean install
+
+# Run tests
+mvn test
+
+# Generate test coverage report
+mvn verify
+```
+
+Code coverage reports are generated in `target/site/jacoco/`.
 
 ## Installation and Setup
 
-1. Clone the repository
-2. Compile the TeamCode Java files:
+1. Clone the repository:
    ```bash
-   javac TeamCode/*.java
+   git clone <repository-url>
+   cd database-system
+   ```
+
+2. Build the project with Maven:
+   ```bash
+   mvn clean package
    ```
 
 3. Build the TPC-H data generator:
    ```bash
-   cd tpch_dbgen/dbgen
+   cd tools/dbgen/dbgen
    make
    ```
 
-4. Generate TPC-H data (replace SF with desired scale factor):
+4. Generate TPC-H data (replace SF with desired scale factor, e.g. 1 for 1GB):
    ```bash
-   ./dbgen -s SF
+   ./dbgen -s SF -f    # Creates data files in the current directory
+   ```
+
+The build will run tests and generate a JAR file in the `target/` directory.
+
+### Quick Start Example
+
+1. Generate sample TPC-H data:
+   ```bash
+   cd tools/dbgen/dbgen
+   make
+   ./dbgen -s 1 -f     # Generates 1GB scale factor data
+   ```
+
+2. Run a simple TPC-H query:
+   ```bash
+   java -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.Main \
+     --data path/to/data/directory \
+     --query "SELECT l_orderkey, l_quantity FROM lineitem WHERE l_quantity > 45"
+   ```
+
+3. Use indexes for better performance:
+   ```bash
+   # Create an index on l_quantity
+   java -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.BuildIndexes \
+     --table lineitem \
+     --column l_quantity \
+     --data path/to/data/directory
+   
+   # Query using the index
+   java -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.Main \
+     --data path/to/data/directory \
+     --index \
+     --query "SELECT l_orderkey FROM lineitem WHERE l_quantity > 45"
    ```
 
 ## Usage Instructions
@@ -91,8 +163,24 @@ The repository includes full TPC-H support:
 
 The TPC-H components allow for benchmarking and testing the query engine against standard industry workloads.
 
-## Performance Optimizations
+## Configuration and Performance Options
 
+The query engine supports several configuration options to optimize performance for different workloads:
+
+### Memory Settings
+```bash
+java -Xmx4g -cp target/database-system-1.0-SNAPSHOT.jar edu.buffalo.cse562.Main   # Set max heap to 4GB
+```
+
+### Available Command Line Options
+- `--data <path>`: Directory containing data files
+- `--index`: Use available indexes for query optimization
+- `--memory <MB>`: Memory limit for operations in megabytes
+- `--temp <path>`: Directory for temporary files
+- `--explain`: Show query execution plan
+- `--stats`: Display performance statistics
+
+### Performance Optimizations
 The engine implements several optimization techniques:
 
 - B-tree indexing for faster lookups
@@ -101,7 +189,49 @@ The engine implements several optimization techniques:
 - Hybrid hash join for memory efficiency
 - Index-based query execution plans
 
-## Contributing
+## Troubleshooting
+
+Common issues and solutions:
+
+### Out of Memory Errors
+If you encounter OutOfMemoryError:
+```
+1. Increase Java heap space: java -Xmx4g -cp ...
+2. Use --memory flag to limit operation memory
+3. Enable external sorting: --temp /path/to/temp/dir
+```
+
+### Performance Issues
+If queries are running slowly:
+1. Create indexes on frequently filtered columns
+2. Ensure adequate memory allocation
+3. Use --explain to analyze query execution plan
+4. Consider increasing buffer size for large joins
+
+### TPC-H Data Generation
+If dbgen fails:
+1. Ensure make completed successfully
+2. Check disk space for output files
+3. Verify file permissions in output directory
+
+For more help:
+- Open an issue on GitHub
+- Check test cases in `src/test/` for example usage
+- Consult TPC-H documentation for data generation questions
+
+## Version and Compatibility
+
+[![Build Status](https://github.com/example/sql-query-engine/workflows/Build/badge.svg)](https://github.com/example/sql-query-engine/actions)
+[![Coverage](https://codecov.io/gh/example/sql-query-engine/branch/main/graph/badge.svg)](https://codecov.io/gh/example/sql-query-engine)
+
+### Version Information
+- Current Version: 1.0-SNAPSHOT
+- Java Compatibility: JDK 8 or later
+- Maven Version: 3.6+
+- JSqlParser: 4.5
+- JUnit: 4.13.2
+
+### Contributing
 
 When contributing to this repository:
 
@@ -109,7 +239,8 @@ When contributing to this repository:
 2. Add appropriate Java documentation
 3. Test changes against TPC-H benchmark queries
 4. Follow the established coding style
+5. Update tests for new functionality
 
 ## License
 
-The custom query engine code is available under the repository's license terms. The TPC-H tools are subject to their own licensing terms as specified in the tpch_dbgen directory.
+The custom query engine code is available under the repository's license terms. The TPC-H tools are subject to their own licensing terms as specified in the tools/dbgen directory.
