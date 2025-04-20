@@ -161,6 +161,10 @@ public class HashJoinTest {
         }
 
         try (FileWriter writer = new FileWriter(ordersFile)) {
+            // Create test orders with format: ORDER_ID|ID|AMOUNT
+            // ID here matches with customer ID for join purposes
+            // 101|1|100.00 = Order #101 for customer #1 with amount $100.00
+            // 102|2|200.00 = Order #102 for customer #2 with amount $200.00
             writer.write("101|1|100.00\n");
             writer.write("102|2|200.00\n");
         }
@@ -341,15 +345,28 @@ public class HashJoinTest {
         // Test case 2: t1 <= t2
         // Create a smaller customers table and larger orders table
         try (FileWriter writer = new FileWriter(customersFile)) {
+            // Create only two customers to ensure t1 <= t2 condition
+            // Format: ID|NAME|AGE
             writer.write("1|Customer A|30\n");
             writer.write("2|Customer B|25\n");
+        } catch (IOException e) {
+            // Log error and fail test if file operations fail
+            System.err.println("Error writing customer test data: " + e.getMessage());
+            fail("Test setup failed: Could not create customer test data");
         }
 
         try (FileWriter writer = new FileWriter(ordersFile)) {
-            writer.write("101|1|100.00\n");
-            writer.write("102|2|200.00\n");
-            writer.write("103|1|300.00\n");
-            writer.write("104|2|400.00\n");
+            // Create more orders than customers (4 > 2) to test t1 <= t2 condition
+            // Format: ORDER_ID|CUSTOMER_ID|AMOUNT
+            // Two orders per customer to test multiple matches
+            writer.write("101|1|100.00\n"); // First order for customer 1
+            writer.write("102|2|200.00\n"); // First order for customer 2
+            writer.write("103|1|300.00\n"); // Second order for customer 1
+            writer.write("104|2|400.00\n"); // Second order for customer 2
+        } catch (IOException e) {
+            // Log error and fail test if file operations fail
+            System.err.println("Error writing order test data: " + e.getMessage());
+            fail("Test setup failed: Could not create order test data");
         }
 
         customersTable.populateTable();
