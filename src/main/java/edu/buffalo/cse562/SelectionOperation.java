@@ -8,6 +8,7 @@ import java.util.Map.Entry;
 
 import edu.buffalo.cse562.model.Table;
 import edu.buffalo.cse562.util.CompatibilityHelper;
+import edu.buffalo.cse562.util.LegacyOperationBridge;
 
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.expression.Expression;
@@ -157,7 +158,7 @@ public class SelectionOperation {
         if (tablesToJoin.size() == 1) {
             
             // in the case when I just have a single table with me to join, I just need to filter that table and that will be my resultant table
-            resultTable = WhereOperation.selectionOnTable(whereExpression, tablesToJoin.get(0));
+            resultTable = LegacyOperationBridge.selectionOnTable(whereExpression, tablesToJoin.get(0));
             // after evaluating the resultant table that satisfies the where clause apply aggregate operations on the table
         }
 
@@ -204,6 +205,46 @@ public class SelectionOperation {
             } catch (Exception e) {
                 System.err.println("Error in join operation: " + e.getMessage());
                 e.printStackTrace();
+                
+                // Fall back to original join implementation if needed
+                Table t1 = null;
+                Table t2 = null;
+                int countOfJoins = 0;
+                int index = tablesToJoin.size() - 1;
+                HashMap<Integer, Table> mapOfTables = new HashMap<>();
+                
+                int i = 0;
+                for (Table table : tablesToJoin) {
+                    mapOfTables.put(i, table);
+                    ++i;
+                }
+                
+                if (index > 0) {
+                    while (countOfJoins != index) {
+                        for (int iterativeIndex = index - 1; iterativeIndex >= 0; iterativeIndex--) {
+                            t1 = mapOfTables.get(index);
+                            t2 = mapOfTables.get(iterativeIndex);
+                            if (t2 == null) {
+                                continue;
+                            }
+                            
+                            ArrayList<String> arrayList = LegacyOperationBridge.evaluateJoinCondition(t1, t2, whereExpression);
+                            
+                            if (arrayList.size() > 0 && mapOfTables.get(iterativeIndex) != null) {
+                                resultTable = HashJoin.evaluateJoin(t1, t2, arrayList.get(0), arrayList.get(1), arrayList.get(2));
+                                mapOfTables.put(iterativeIndex, null);
+                                mapOfTables.put(index, resultTable);
+                                countOfJoins++;
+                            }
+                        }
+                    }
+                }
+                
+                // check if the tpch7 condition for the sub-query is not null and apply it to the table
+                if (whereExpression instanceof Parenthesis) {
+                    Expression expression = ((Parenthesis) whereExpression).getExpression();
+                    resultTable = LegacyOperationBridge.selectionOnTable(expression, resultTable);
+                }
             }
         }
         
