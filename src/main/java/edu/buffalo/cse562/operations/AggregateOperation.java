@@ -7,6 +7,7 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.SelectExpressionItem;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,10 +16,16 @@ import java.util.Map;
 /**
  * Implementation of aggregate operations (COUNT, SUM, AVG, etc.).
  */
-public class AggregateOperation implements DatabaseOperation {
+public class AggregateOperation extends AbstractDatabaseOperation {
     private final List<SelectExpressionItem> selectItems;
     private final List<Expression> groupByColumns;
 
+    /**
+     * Creates a new AggregateOperation.
+     * 
+     * @param selectItems SELECT items containing aggregate functions
+     * @param groupByColumns GROUP BY columns (can be null if no grouping)
+     */
     public AggregateOperation(List<SelectExpressionItem> selectItems, List<Expression> groupByColumns) {
         this.selectItems = selectItems;
         this.groupByColumns = groupByColumns;
@@ -31,20 +38,27 @@ public class AggregateOperation implements DatabaseOperation {
         }
 
         Table input = inputs[0];
-        Table result = new Table(input.getTableName() + "_aggregated", 
-                               selectItems.size(),
-                               null,
-                               input.getDataDirectory());
-
+        
         // If no GROUP BY, perform simple aggregation
         if (groupByColumns == null || groupByColumns.isEmpty()) {
             return executeSimpleAggregation(input);
         }
 
-        // Otherwise do grouped aggregation
-        return executeGroupedAggregation(input);
+        // Otherwise delegate to GroupByOperation
+        GroupByOperation groupByOp = new GroupByOperation(groupByColumns, selectItems);
+        try {
+            return groupByOp.execute(input);
+        } catch (Exception e) {
+            throw new RuntimeException("Error in aggregate operation", e);
+        }
     }
 
+    /**
+     * Executes a simple aggregation without grouping.
+     * 
+     * @param input The input table
+     * @return The aggregated table
+     */
     private Table executeSimpleAggregation(Table input) {
         // Initialize aggregation result arrays
         Map<String, BigDecimal> sums = new HashMap<>();
@@ -59,8 +73,20 @@ public class AggregateOperation implements DatabaseOperation {
             for (SelectExpressionItem item : selectItems) {
                 if (item.getExpression() instanceof Function) {
                     Function func = (Function) item.getExpression();
-                    Column col = (Column) func.getParameters().getExpressions().get(0);
-                    int colIndex = input.getColumnIndexMap().get(col.getColumnName().toLowerCase());
+                    if (func.getParameters() == null || func.getParameters().getExpressions().isEmpty()) {
+                        continue;
+                    }
+                    
+                    Expression expr = func.getParameters().getExpressions().get(0);
+                    if (!(expr instanceof Column)) {
+                        continue;
+                    }
+                    
+                    Column col = (Column) expr;
+                    Integer colIndex = input.getColumnIndexMap().get(col.getColumnName().toLowerCase());
+                    if (colIndex == null || colIndex >= values.length) {
+                        continue;
+                    }
                     
                     try {
                         BigDecimal value = new BigDecimal(values[colIndex].trim());
@@ -74,10 +100,14 @@ public class AggregateOperation implements DatabaseOperation {
                                 counts.merge(key, 1, Integer::sum);
                                 break;
                             case "min":
-                                mins.merge(key, value, BigDecimal::min);
+                                if (!mins.containsKey(key) || value.compareTo(mins.get(key)) < 0) {
+                                    mins.put(key, value);
+                                }
                                 break;
                             case "max":
-                                maxs.merge(key, value, BigDecimal::max);
+                                if (!maxs.containsKey(key) || value.compareTo(maxs.get(key)) > 0) {
+                                    maxs.put(key, value);
+                                }
                                 break;
                             case "avg":
                                 sums.merge(key, value, BigDecimal::add);
@@ -86,17 +116,20 @@ public class AggregateOperation implements DatabaseOperation {
                         }
                     } catch (NumberFormatException e) {
                         // Skip non-numeric values
-                        continue;
                     }
                 }
             }
         }
 
         // Build result table
-        Table result = new Table(input.getTableName() + "_aggregated", selectItems.size(), null, input.getDataDirectory());
+        Table result = new Table(input.getTableName() + "_aggregated", 
+                               selectItems.size(), 
+                               null, 
+                               input.getDataDirectory());
+        
         ArrayList<String> resultTuples = new ArrayList<>();
-
         StringBuilder sb = new StringBuilder();
+
         for (SelectExpressionItem item : selectItems) {
             if (item.getExpression() instanceof Function) {
                 Function func = (Function) item.getExpression();
@@ -118,12 +151,16 @@ public class AggregateOperation implements DatabaseOperation {
                     case "avg":
                         BigDecimal sum = sums.getOrDefault(key, BigDecimal.ZERO);
                         int count = counts.getOrDefault(key, 1);
-                        sb.append(sum.divide(new BigDecimal(count), 2, BigDecimal.ROUND_HALF_UP));
+                        sb.append(sum.divide(new BigDecimal(count), 2, RoundingMode.HALF_UP));
+                        break;
+                    default:
+                        sb.append("0");
                         break;
                 }
             } else {
                 sb.append(item.getExpression().toString());
             }
+            
             sb.append("|");
         }
 
@@ -134,14 +171,5 @@ public class AggregateOperation implements DatabaseOperation {
 
         result.setTuples(resultTuples);
         return result;
-    }
-
-    private Table executeGroupedAggregation(Table input) {
-        // TODO: Implement grouped aggregation
-        // This would involve:
-        // 1. Building group keys from the groupByColumns
-        // 2. Creating separate aggregates for each group
-        // 3. Combining results preserving group by columns
-        return input;
     }
 }
