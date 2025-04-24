@@ -18,9 +18,8 @@ import java.util.List;
  * Implements selection operations on database tables.
  * Handles SELECT queries including joins, where clauses, and aggregations.
  */
-public class SelectionOperation implements DatabaseOperation {
+public class SelectionOperation extends AbstractDatabaseOperation {
     private final Statement statement;
-    private final HashMap<String, Table> tableMap;
 
     /**
      * Constructs a new SelectionOperation.
@@ -29,8 +28,8 @@ public class SelectionOperation implements DatabaseOperation {
      * @param tableMap Map of table names to Table objects
      */
     public SelectionOperation(Statement statement, HashMap<String, Table> tableMap) {
+        super(tableMap);
         this.statement = statement;
-        this.tableMap = tableMap;
     }
 
     @Override
@@ -96,12 +95,12 @@ public class SelectionOperation implements DatabaseOperation {
 
     private Table resolveTable(String tableName) {
         String[] parts = tableName.toLowerCase().split("\\s+");
-        Table table = tableMap.get(parts[0]);
+        Table table = getTable(parts[0]);
         
         if (parts.length > 1 && parts[1].equals("as")) {
-            Table aliasedTable = new Table(table);
+            Table aliasedTable = copyTable(table);
             aliasedTable.setTableName(parts[2]);
-            tableMap.put(parts[2], aliasedTable);
+            registerTable(parts[2], aliasedTable);
             return aliasedTable;
         }
         
@@ -121,7 +120,7 @@ public class SelectionOperation implements DatabaseOperation {
             
             if (alias != null) {
                 result.setTableName(alias);
-                tableMap.put(alias, result);
+                registerTable(alias, result);
             }
             
             return result;
@@ -135,8 +134,12 @@ public class SelectionOperation implements DatabaseOperation {
             return tables.get(0);
         }
         
-        // TODO: Implement join logic using HashJoin/HybridHash operations
-        return tables.get(0);
+        JoinOperation joinOp = new JoinOperation(whereClause);
+        try {
+            return joinOp.execute(tables.toArray(new Table[0]));
+        } catch (IOException e) {
+            throw new RuntimeException("Error performing join operation", e);
+        }
     }
 
     private Table applyWherePredicate(Table table, Expression whereClause) {
@@ -144,8 +147,12 @@ public class SelectionOperation implements DatabaseOperation {
             return table;
         }
         
-        // TODO: Implement where clause filtering
-        return table;
+        WhereOperation whereOp = new WhereOperation(whereClause);
+        try {
+            return whereOp.execute(table);
+        } catch (IOException e) {
+            throw new RuntimeException("Error applying where predicate", e);
+        }
     }
 
     private Table processGrouping(Table table, List groupByElements, List selectItems) {
@@ -153,8 +160,12 @@ public class SelectionOperation implements DatabaseOperation {
             return table;
         }
         
-        // TODO: Implement grouping and aggregation
-        return table;
+        GroupByOperation groupByOp = new GroupByOperation(groupByElements, selectItems);
+        try {
+            return groupByOp.execute(table);
+        } catch (IOException e) {
+            throw new RuntimeException("Error processing group by", e);
+        }
     }
 
     private Table processOrderBy(Table table, List orderByElements) {
@@ -162,8 +173,12 @@ public class SelectionOperation implements DatabaseOperation {
             return table;
         }
         
-        // TODO: Implement order by
-        return table;
+        OrderByOperation orderByOp = new OrderByOperation(orderByElements);
+        try {
+            return orderByOp.execute(table);
+        } catch (IOException e) {
+            throw new RuntimeException("Error processing order by", e);
+        }
     }
 
     private boolean hasAggregates(List selectItems) {
