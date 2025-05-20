@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: qgen.c,v 1.3 2005/10/28 02:54:35 jms Exp $
 *
 * Revision History

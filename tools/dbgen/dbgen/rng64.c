@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: rng64.c,v 1.7 2008/03/21 17:38:39 jms Exp $
 *
 * This software contains proprietary and confidential information of Gradient

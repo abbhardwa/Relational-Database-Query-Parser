@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: dss.h,v 1.10 2008/03/21 18:07:13 jms Exp $
 *
 * Revision History

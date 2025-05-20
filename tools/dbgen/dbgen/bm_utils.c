@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: bm_utils.c,v 1.4 2006/04/12 18:00:55 jms Exp $
 *
 * Revision History

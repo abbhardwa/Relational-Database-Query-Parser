@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: shared.h,v 1.2 2005/01/03 20:08:59 jms Exp $
 *
 * Revision History

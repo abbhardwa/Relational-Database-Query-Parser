@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
 package edu.buffalo.cse562;
 
 import java.util.Collections;

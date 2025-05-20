@@ -113,3 +113,6 @@ When contributing to this repository:
 ## License
 
 The custom query engine code is available under the repository's license terms. The TPC-H tools are subject to their own licensing terms as specified in the tpch_dbgen directory.
+
+---
+Copyright © 2023 Abhinav Bhardwaj

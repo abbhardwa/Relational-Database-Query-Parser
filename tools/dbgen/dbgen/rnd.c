@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: rnd.c,v 1.7 2006/07/31 17:23:09 jms Exp $
 *
 * Revision History
