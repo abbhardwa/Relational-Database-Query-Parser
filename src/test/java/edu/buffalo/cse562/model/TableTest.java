@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
 package edu.buffalo.cse562.model;
 
 import net.sf.jsqlparser.statement.create.table.ColumnDefinition;

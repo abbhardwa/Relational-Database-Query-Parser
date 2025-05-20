@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: permute.c,v 1.3 2007/01/04 21:29:21 jms Exp $
 *
 * Revision History

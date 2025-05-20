@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: bcd2.h,v 1.2 2005/01/03 20:08:58 jms Exp $
 *
 * Revision History

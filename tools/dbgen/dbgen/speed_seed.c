@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: speed_seed.c,v 1.9 2009/06/28 14:01:08 jms Exp $
 *
 * Revision History

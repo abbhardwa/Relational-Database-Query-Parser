@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: varsub.c,v 1.9 2008/03/20 16:38:34 jms Exp $
 *
 * Revision History

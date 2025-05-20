@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
 package edu.buffalo.cse562.util;
 
 import net.sf.jsqlparser.statement.select.FromItem;

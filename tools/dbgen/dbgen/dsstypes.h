@@ -1,4 +1,8 @@
 /*
+ * Copyright (c) 2023 Abhinav Bhardwaj
+ */
+
+/*
 * $Id: dsstypes.h,v 1.3 2005/10/28 02:57:04 jms Exp $
 *
 * Revision History
