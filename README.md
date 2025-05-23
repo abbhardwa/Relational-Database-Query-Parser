@@ -114,5 +114,39 @@ When contributing to this repository:
 
 The custom query engine code is available under the repository's license terms. The TPC-H tools are subject to their own licensing terms as specified in the tpch_dbgen directory.
 
+## Copyright Notice
+
+All content in this repository is copyright protected:
+
+### Core SQL Query Engine Classes
+* `Main.java` - Main application entry point implementation
+* `AggregateOperations.java` - Implementation of SQL aggregation functions
+* `BuildIndexes.java` - Index creation and management utilities
+* `ExternalSort.java` - External merge sort implementation for large datasets
+* `HashJoin.java` - Hash-based join algorithm implementation
+* `HybridHash.java` - Memory-efficient hybrid hash join implementation
+* `OrderByOperation.java` - Result sorting implementation for ORDER BY clauses
+* `ProjectTableOperation.java` - Column projection operations implementation
+* `SelectionOperation.java` - Row filtering implementation for WHERE conditions
+* `WhereOperation.java` - Expression evaluation for query predicates
+
+### Model Classes
+* `Table.java` - Core table representation with schema and data management
+
+### Operation Classes
+* `AggregateOperation.java` - Processing for GROUP BY and aggregation functions
+* `DatabaseOperation.java` - Base interface for all query operations
+* `SelectionOperation.java` - Implementation of selection operations
+
+### Service Classes
+* `QueryExecutionService.java` - Service for executing and managing SQL queries
+
+### Utility Classes
+* `FileUtils.java` - File handling utilities for data access
+* `QueryUtils.java` - Utilities for query parsing and optimization
+
+### Data Generation Tools
+* All files in `tools/dbgen/dbgen/` directory - TPC-H data generation utilities
+
 ---
 Copyright © 2023 Abhinav Bhardwaj
