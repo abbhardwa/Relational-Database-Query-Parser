@@ -29,7 +29,7 @@ public class QueryExecutionService {
      * @throws Exception If an error occurs during query execution
      */
     public Table executeQuery(String sql) throws Exception {
-        CCJSqlParser parser = new CCJSqlParser(new StringReader(sql));
+        CCJSqlParser parser = new CCJSqlParser(sql);
         Statement statement = parser.Statement();
 
         if (statement instanceof CreateTable) {
@@ -47,7 +47,7 @@ public class QueryExecutionService {
                               createTable.getColumnDefinitions().size(),
                               null,  // TODO: Set proper file path
                               null); // TODO: Set proper directory path
-        table.setColumnDefinitions(new ArrayList<>(createTable.getColumnDefinitions()));
+        table.setColumnDefinitions(new java.util.ArrayList<>(createTable.getColumnDefinitions()));
         table.populateColumnIndexMap();
         tableMap.put(tableName, table);
         return table;
