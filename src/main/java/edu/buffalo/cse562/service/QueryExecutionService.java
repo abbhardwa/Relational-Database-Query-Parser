@@ -7,8 +7,10 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.create.table.CreateTable;
 import net.sf.jsqlparser.statement.select.Select;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -16,9 +18,16 @@ import java.util.HashMap;
  */
 public class QueryExecutionService {
     private final HashMap<String, Table> tableMap;
+    private final File dataDirectory;
 
     public QueryExecutionService() {
         this.tableMap = new HashMap<>();
+        this.dataDirectory = null;
+    }
+
+    public QueryExecutionService(File dataDirectory) {
+        this.tableMap = new HashMap<>();
+        this.dataDirectory = dataDirectory;
     }
 
     /**
@@ -31,7 +40,17 @@ public class QueryExecutionService {
     public Table executeQuery(String sql) throws Exception {
         CCJSqlParser parser = new CCJSqlParser(new StringReader(sql));
         Statement statement = parser.Statement();
+        return executeQuery(statement);
+    }
 
+    /**
+     * Executes a SQL statement and returns the result.
+     *
+     * @param statement The SQL statement to execute
+     * @return The resulting table after query execution
+     * @throws Exception If an error occurs during query execution
+     */
+    public Table executeQuery(Statement statement) throws Exception {
         if (statement instanceof CreateTable) {
             return handleCreateTable((CreateTable) statement);
         } else if (statement instanceof Select) {
@@ -46,7 +65,7 @@ public class QueryExecutionService {
         Table table = new Table(tableName, 
                               createTable.getColumnDefinitions().size(),
                               null,  // TODO: Set proper file path
-                              null); // TODO: Set proper directory path
+                              dataDirectory);
         table.setColumnDefinitions(new ArrayList<>(createTable.getColumnDefinitions()));
         table.populateColumnIndexMap();
         tableMap.put(tableName, table);
