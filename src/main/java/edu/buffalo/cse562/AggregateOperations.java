@@ -1,5 +1,6 @@
 package edu.buffalo.cse562;
 
+import edu.buffalo.cse562.model.Table;
 import java.util.Collections;
 import java.util.List;
 import java.util.HashSet;

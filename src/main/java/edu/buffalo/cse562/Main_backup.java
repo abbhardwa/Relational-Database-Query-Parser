@@ -16,29 +16,23 @@ import java.util.ArrayList;
 /**
  * Main entry point for the database query parser application.
  */
-public class Main {
+public class Main_backup {
     private static QueryExecutionService queryService;
 
     public static void main(String[] args) {
         try {
-            // Initialize query service with default data directory
-            File defaultDataDir = new File("src/test/resources/testdata");
-            queryService = new QueryExecutionService(defaultDataDir);
+            // Initialize query service
+            queryService = new QueryExecutionService();
 
             // Process command line arguments
             File dataDir = null;
             for (int i = 0; i < args.length; i++) {
                 if (args[i].equals("--data")) {
                     dataDir = new File(args[++i]);
-                    queryService = new QueryExecutionService(dataDir);
                 }
             }
 
-            if (dataDir == null) {
-                dataDir = defaultDataDir;
-            }
-
-            if (!dataDir.isDirectory()) {
+            if (dataDir == null || !dataDir.isDirectory()) {
                 throw new IllegalArgumentException("Please provide a valid data directory with --data argument");
             }
 
@@ -66,7 +60,7 @@ public class Main {
                     processCreateTable((CreateTable) statement, dataDir);
                 } else {
                     // Execute query and display results
-                    Table result = queryService.executeQuery(statement);
+                    Table result = queryService.executeQuery(statement.toString());
                     if (result != null) {
                         displayResults(result);
                     }

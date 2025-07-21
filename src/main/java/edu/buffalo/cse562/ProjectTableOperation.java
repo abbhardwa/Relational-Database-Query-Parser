@@ -1,5 +1,6 @@
 package edu.buffalo.cse562;
 
+import edu.buffalo.cse562.model.Table;
 import java.io.IOException;
 import java.util.ArrayList;
 import net.sf.jsqlparser.parser.ParseException;
