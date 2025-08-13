@@ -2,6 +2,33 @@
 
 This repository contains a custom SQL query processing engine implementation in Java along with TPC-H benchmark support tools. The project provides a framework for executing SQL queries over TPC-H benchmark data with various query optimization techniques including hash joins, aggregation operations, and indexing.
 
+## Technologies Used
+
+### Programming Languages
+- **Java 8+** - Primary language for the query engine implementation
+- **C/C++** - For TPC-H data generation utilities (dbgen)
+- **Shell Scripting** - Automation and testing scripts
+
+### Build Tools & Frameworks
+- **Apache Maven 3.x** - Build automation and dependency management
+- **Make/GCC** - For compiling C/C++ TPC-H data generator
+- **JaCoCo 0.8.7** - Code coverage analysis
+
+### Libraries & Dependencies
+- **JSQLParser 4.5** - SQL parsing and AST representation
+- **JUnit 4.13.2** - Unit testing framework
+- **JDBM** - Java Database Manager for B-tree index support
+
+### Database & Data Processing
+- **TPC-H Benchmark Suite** - Standard decision support benchmark
+- **B-tree Indexing** - For optimized data access
+- **Hash-based Algorithms** - Join operations and data processing
+- **External Sorting** - For handling large datasets
+
+### Development Tools
+- **Git** - Version control
+- **Maven Compiler Plugin 3.8.1** - Java compilation
+
 ## Project Structure
 
 ```
